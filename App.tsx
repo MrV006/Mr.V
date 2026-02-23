@@ -878,9 +878,17 @@ const App = () => {
 
   // === CALL HANDLERS ===
   const callerDetails = useMemo(() => {
-    if (incomingCall) return { name: (incomingCall as any).caller_name || 'Unknown', avatar: (incomingCall as any).caller_avatar || '' };
-    if (activeContact) return { name: activeContact.username, avatar: activeContact.avatar || '' };
-    return { name: 'Unknown', avatar: '' };
+    if (incomingCall) {
+        const name = (incomingCall as any).caller_name || 'Unknown';
+        const avatar = (incomingCall as any).caller_avatar || `https://ui-avatars.com/api/?name=${name}&background=random`;
+        return { name, avatar };
+    }
+    if (activeContact) {
+        const name = activeContact.name || activeContact.username;
+        const avatar = activeContact.avatar || `https://ui-avatars.com/api/?name=${name}&background=random`;
+        return { name, avatar };
+    }
+    return { name: 'Unknown', avatar: 'https://ui-avatars.com/api/?name=Unknown&background=random' };
   }, [incomingCall, activeContact]);
 
   const handleStartCall = (type: 'audio' | 'video') => {

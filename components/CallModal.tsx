@@ -69,22 +69,27 @@ const VideoPlayer = React.memo(({
     stream, 
     isLocal, 
     className, 
-    muted = false 
+    muted = false,
+    objectFit = 'cover'
 }: { 
     stream: MediaStream | null, 
     isLocal: boolean, 
     className: string, 
-    muted?: boolean 
+    muted?: boolean,
+    objectFit?: 'cover' | 'contain'
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const blurVideoRef = useRef<HTMLVideoElement>(null);
     const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
         const video = videoRef.current;
+        const blurVideo = blurVideoRef.current;
         if (!video) return;
 
         if (stream && stream.active) {
             if (video.srcObject !== stream) video.srcObject = stream;
+            if (blurVideo && blurVideo.srcObject !== stream) blurVideo.srcObject = stream;
             
             video.play().then(() => setIsReady(true)).catch(err => {
                 if (err.name === 'NotAllowedError') {
@@ -92,24 +97,38 @@ const VideoPlayer = React.memo(({
                     video.play().then(() => setIsReady(true)).catch(console.warn);
                 }
             });
+            if (blurVideo) {
+                blurVideo.play().catch(() => {});
+            }
         } else {
             video.srcObject = null;
+            if (blurVideo) blurVideo.srcObject = null;
             setIsReady(false);
         }
     }, [stream]);
 
     return (
-        <div className={`relative ${className} overflow-hidden bg-black`}>
+        <div className={`relative ${className} overflow-hidden bg-gray-950`}>
+            {objectFit === 'contain' && (
+                <video
+                    ref={blurVideoRef}
+                    className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110"
+                    autoPlay
+                    playsInline
+                    muted
+                    style={isLocal ? { transform: 'scaleX(-1)' } : undefined}
+                />
+            )}
             <video
                 ref={videoRef}
-                className="w-full h-full object-cover"
+                className={`relative z-10 w-full h-full object-${objectFit}`}
                 autoPlay
                 playsInline
                 muted={muted || isLocal}
                 style={isLocal ? { transform: 'scaleX(-1)' } : undefined}
             />
             {(!isReady && stream) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm z-20">
                     <Loader2 className="w-8 h-8 text-white animate-spin" />
                 </div>
             )}
@@ -223,6 +242,7 @@ const SecurityPanel = ({ code, callerName, onClose }: { code: string, callerName
 // === SCREEN: Incoming Call ===
 const IncomingCallScreen = ({ callerName, avatar, type, onAccept, onReject }: any) => {
     const [isAccepting, setIsAccepting] = useState(false);
+    const safeAvatar = avatar || `https://ui-avatars.com/api/?name=${callerName}&background=random`;
 
     const handleAccept = () => {
         if (isAccepting) return;
@@ -231,37 +251,43 @@ const IncomingCallScreen = ({ callerName, avatar, type, onAccept, onReject }: an
     };
 
     return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/95 backdrop-blur-xl px-4 font-sans">
-        <div className="flex flex-col items-center gap-8 w-full max-w-sm animate-in fade-in zoom-in duration-300">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950 px-4 font-sans">
+        {/* Background Blur */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <img src={safeAvatar} className="w-full h-full object-cover opacity-20 blur-3xl scale-110" />
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-950/50 to-gray-950/90" />
+        </div>
+
+        <div className="flex flex-col items-center gap-10 w-full max-w-sm animate-in fade-in zoom-in duration-300 relative z-10">
           <div className="relative">
-            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-blue-500 shadow-2xl shadow-blue-500/20">
-              <img src={avatar} alt={callerName} className="w-full h-full object-cover" />
+            <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-primary-500 shadow-2xl shadow-primary-500/20 relative z-10">
+              <img src={safeAvatar} alt={callerName} className="w-full h-full object-cover" />
             </div>
-            <div className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-20" />
-            <div className="absolute inset-0 rounded-full border-2 border-blue-300 animate-ping opacity-10" style={{ animationDelay: '0.5s' }} />
+            <div className="absolute inset-0 rounded-full border-4 border-primary-400 animate-ping opacity-20" style={{ animationDuration: '2s' }} />
+            <div className="absolute inset-0 rounded-full border-2 border-primary-300 animate-ping opacity-10" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
           </div>
 
-          <div className="text-center space-y-2">
-            <h3 className="text-3xl font-bold text-white tracking-tight">{callerName}</h3>
-            <p className="text-blue-300 font-medium">Incoming {type} call...</p>
-            <div className="flex items-center justify-center gap-2 text-xs text-green-400 bg-green-500/10 border border-green-500/20 py-1.5 px-4 rounded-full mx-auto w-fit">
+          <div className="text-center space-y-3">
+            <h3 className="text-4xl font-bold text-white tracking-tight">{callerName}</h3>
+            <p className="text-primary-300 font-medium text-lg">Incoming {type} call...</p>
+            <div className="flex items-center justify-center gap-2 text-xs text-green-400 bg-green-500/10 border border-green-500/20 py-1.5 px-4 rounded-full mx-auto w-fit mt-2">
               <ShieldCheck size={14} /> End-to-End Encrypted
             </div>
           </div>
 
           <div className="flex items-center gap-16 mt-8">
-            <button onClick={onReject} disabled={isAccepting} className="flex flex-col items-center gap-2 group disabled:opacity-50">
+            <button onClick={onReject} disabled={isAccepting} className="flex flex-col items-center gap-3 group disabled:opacity-50">
               <div className="p-5 bg-red-500 rounded-full hover:bg-red-600 transition shadow-lg shadow-red-500/30 group-active:scale-95">
                 <PhoneOff size={32} className="text-white" />
               </div>
-              <span className="text-white/70 text-sm">Decline</span>
+              <span className="text-white/70 font-medium tracking-wide">Decline</span>
             </button>
 
-            <button onClick={handleAccept} disabled={isAccepting} className="flex flex-col items-center gap-2 group disabled:opacity-80">
+            <button onClick={handleAccept} disabled={isAccepting} className="flex flex-col items-center gap-3 group disabled:opacity-80">
               <div className={`p-5 rounded-full transition shadow-lg shadow-green-500/30 group-active:scale-95 ${isAccepting ? 'bg-green-600 animate-pulse' : 'bg-green-500 hover:bg-green-600'}`}>
                 {isAccepting ? <Loader2 size={32} className="text-white animate-spin" /> : <Phone size={32} className="text-white" />}
               </div>
-              <span className="text-white/70 text-sm">{isAccepting ? 'Connecting...' : 'Accept'}</span>
+              <span className="text-white/70 font-medium tracking-wide">{isAccepting ? 'Connecting...' : 'Accept'}</span>
             </button>
           </div>
         </div>
@@ -274,43 +300,58 @@ const AudioCallScreen = ({
   callerName, avatar, status, duration = 0,
   isMuted, isSpeakerOn, securityCode, remoteStream,
   onToggleMute, onToggleSpeaker, onEnd, onShowSecurity,
-}: any) => (
-  <div className="fixed inset-0 z-[50] bg-gradient-to-b from-slate-900 to-slate-950 flex flex-col items-center justify-between py-12 font-sans">
+}: any) => {
+  const safeAvatar = avatar || `https://ui-avatars.com/api/?name=${callerName}&background=random`;
+  
+  return (
+  <div className="fixed inset-0 z-[50] bg-gray-950 flex flex-col items-center justify-between py-12 font-sans">
+    {/* Background Blur */}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <img src={safeAvatar} className="w-full h-full object-cover opacity-20 blur-3xl scale-110" />
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-950/50 to-gray-950/90" />
+    </div>
+
     {remoteStream && <AudioPlayer stream={remoteStream} isSpeakerOn={isSpeakerOn} />}
 
-    <div className="w-full flex justify-center px-6 min-h-[40px]">
+    <div className="w-full flex justify-center px-6 min-h-[40px] relative z-10">
       {status === 'active' && securityCode && (
-        <button onClick={onShowSecurity} className="flex items-center gap-2 bg-slate-800/50 border border-slate-700 text-green-400 px-3 py-1.5 rounded-full text-xs hover:bg-slate-800 transition">
-          <Lock size={12} /> Secure Call
+        <button onClick={onShowSecurity} className="flex items-center gap-2 bg-white/5 border border-white/10 text-green-400 px-4 py-2 rounded-full text-sm font-medium hover:bg-white/10 transition backdrop-blur-md">
+          <Lock size={14} /> Secure Call
         </button>
       )}
     </div>
 
-    <div className="flex flex-col items-center justify-center space-y-6 flex-1">
+    <div className="flex flex-col items-center justify-center space-y-8 flex-1 relative z-10">
       <div className="relative">
-        <div className="w-36 h-36 rounded-full border-2 border-slate-600 p-1 shadow-2xl">
-          <img src={avatar} className="w-full h-full rounded-full object-cover bg-slate-800" />
+        <div className="w-40 h-40 rounded-full border-4 border-white/10 p-1 shadow-2xl relative z-10">
+          <img src={safeAvatar} className="w-full h-full rounded-full object-cover bg-gray-800" />
         </div>
-        {status === 'active' && <div className="absolute inset-0 rounded-full border border-green-500/30 animate-pulse" />}
+        {status === 'active' && (
+          <>
+            <div className="absolute inset-0 rounded-full border-2 border-primary-500/50 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="absolute inset-0 rounded-full border-2 border-primary-500/30 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+          </>
+        )}
       </div>
 
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-1">{callerName}</h2>
-        <p className="text-slate-400 text-sm font-medium tracking-wide">
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-bold text-white tracking-tight">{callerName}</h2>
+        <p className="text-gray-400 text-base font-medium tracking-wide">
           {status === 'active' ? formatDuration(duration) : (status === 'reconnecting' ? 'Reconnecting...' : (status === 'ringing' ? 'Ringing...' : 'Connecting...'))}
         </p>
       </div>
     </div>
 
-    <div className="w-full max-w-sm px-6">
-      <div className="flex items-center justify-center gap-5 bg-slate-800/60 rounded-full px-8 py-4 border border-white/10 backdrop-blur-md shadow-2xl shadow-black/40">
+    <div className="w-full max-w-md px-6 relative z-10">
+      <div className="flex items-center justify-center gap-6 bg-white/5 rounded-3xl px-8 py-6 border border-white/10 backdrop-blur-xl shadow-2xl">
         <ControlButton onClick={onToggleSpeaker} active={isSpeakerOn} icon={isSpeakerOn ? Volume2 : VolumeX} title="Speaker" />
         <ControlButton onClick={onToggleMute} active={isMuted} icon={isMuted ? MicOff : Mic} title={isMuted ? "Unmute" : "Mute"} />
         <ControlButton onClick={onEnd} danger icon={PhoneOff} title="End Call" />
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // === SCREEN: Video Call ===
 const VideoCallScreen = ({
@@ -320,6 +361,8 @@ const VideoCallScreen = ({
   onToggleMute, onToggleCamera, onToggleSpeaker,
   onSwitchCamera, onEnd, onShowSecurity
 }: any) => {
+  const safeAvatar = avatar || `https://ui-avatars.com/api/?name=${callerName}&background=random`;
+
   return (
     <div className="fixed inset-0 z-[50] bg-gray-950 overflow-hidden flex items-center justify-center font-sans">
       {remoteStream && <AudioPlayer stream={remoteStream} isSpeakerOn={isSpeakerOn} />}
@@ -329,13 +372,13 @@ const VideoCallScreen = ({
 
       {/* Remote Video */}
       {status === 'active' && remoteStream && remoteVideoActive ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-          <VideoPlayer stream={remoteStream} isLocal={false} className="w-full h-full object-cover" />
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-950">
+          <VideoPlayer stream={remoteStream} isLocal={false} className="w-full h-full" objectFit="contain" />
         </div>
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-0">
           <div className="relative">
-            <img src={avatar} className="w-32 h-32 rounded-full border-4 border-white/10 shadow-2xl object-cover mb-6" />
+            <img src={safeAvatar} className="w-32 h-32 rounded-full border-4 border-white/10 shadow-2xl object-cover mb-6" />
             {status !== 'active' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
                 <Loader2 size={40} className="text-white animate-spin" />
@@ -350,24 +393,22 @@ const VideoCallScreen = ({
       )}
 
       {/* Local Video - Floating */}
-      <div className="absolute top-14 right-3 sm:top-16 sm:right-4 md:top-8 md:right-8 w-24 h-32 sm:w-28 sm:h-40 md:w-36 md:h-48 z-30 transition-all duration-300 cursor-move">
-        <div className="w-full h-full rounded-2xl overflow-hidden bg-gray-800 shadow-2xl border border-white/20 relative group">
-          {isCameraOff ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-white/50">
-              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-2"><VideoOff size={20} /></div>
-              <span className="text-xs">Off</span>
-            </div>
-          ) : (
-            <VideoPlayer stream={localStream} isLocal={true} className="w-full h-full object-cover" muted={true} />
-          )}
-          {!isCameraOff && onSwitchCamera && (
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-200">
-              <button onClick={onSwitchCamera} className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 active:scale-90">
-                <SwitchCamera size={16} />
-              </button>
-            </div>
-          )}
-        </div>
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 w-28 h-40 sm:w-36 sm:h-48 md:w-48 md:h-64 z-30 transition-all duration-300 shadow-2xl rounded-2xl overflow-hidden border border-white/10 group bg-gray-900">
+        {isCameraOff ? (
+          <div className="w-full h-full flex flex-col items-center justify-center text-white/50">
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-2"><VideoOff size={20} /></div>
+            <span className="text-xs font-medium">Camera Off</span>
+          </div>
+        ) : (
+          <VideoPlayer stream={localStream} isLocal={true} className="w-full h-full" objectFit="cover" muted={true} />
+        )}
+        {!isCameraOff && onSwitchCamera && (
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-200 z-40">
+            <button onClick={onSwitchCamera} className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 active:scale-90">
+              <SwitchCamera size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Header Info */}
@@ -389,8 +430,8 @@ const VideoCallScreen = ({
       </div>
 
       {/* Controls */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-40 pb-safe">
-        <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-6 z-40 pb-safe">
+        <div className="flex items-center justify-center gap-4 px-6 py-5 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl">
           <ControlButton onClick={onToggleMute} active={isMuted} icon={isMuted ? MicOff : Mic} title={isMuted ? "Unmute" : "Mute"} />
           <ControlButton onClick={onToggleCamera} active={isCameraOff} icon={isCameraOff ? VideoOff : Video} title={isCameraOff ? "Camera On" : "Camera Off"} />
           <ControlButton onClick={onEnd} danger icon={PhoneOff} title="End Call" />
