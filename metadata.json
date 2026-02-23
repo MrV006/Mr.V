@@ -1,0 +1,9 @@
+{
+  "name": "Mr.V",
+  "version": "1.1.0",
+  "description": "A full-stack ready messenger application. Includes a high-performance React frontend and generate-able PHP/MySQL backend code for easy deployment to shared hosting.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

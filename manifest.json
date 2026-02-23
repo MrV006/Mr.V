@@ -1,0 +1,23 @@
+{
+  "name": "Mr.V Secure Messenger",
+  "short_name": "Mr.V",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#eff6ff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://ui-avatars.com/api/?name=Mr+V&background=3b82f6&color=fff&size=192&rounded=true&bold=true",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://ui-avatars.com/api/?name=Mr+V&background=3b82f6&color=fff&size=512&rounded=true&bold=true",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

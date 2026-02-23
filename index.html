@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fa" dir="ltr" style="height: 100%; overflow: hidden;">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Fixed accessibility: Allow zooming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+
+    <!-- Theme color matched to the new primary dark shade -->
+    <meta name="theme-color" content="#1e1b4b" />
+    <meta name="description" content="Mr.V — Secure Encrypted Messenger" />
+
+    <!-- PWA Support -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mr.V" />
+
+    <title>Mr.V — Secure Messenger</title>
+
+    <!-- Fonts: DM Sans for UI, Space Mono for data/time -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['DM Sans', 'system-ui', 'sans-serif'],
+              mono: ['Space Mono', 'monospace'],
+            },
+            colors: {
+              primary: {
+                50:  '#eef2ff',
+                100: '#e0e7ff',
+                400: '#818cf8',
+                500: '#6366f1', // Indigo-500
+                600: '#4f46e5', // Indigo-600
+                700: '#4338ca',
+                900: '#1e1b4b',
+              },
+              chat: {
+                mine:   '#4f46e5',
+                theirs: '#f3f4f6',
+              }
+            },
+            keyframes: {
+              'fade-up': {
+                '0%':   { opacity: '0', transform: 'translateY(8px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              'pulse-ring': {
+                '0%, 100%': { opacity: '0.2', transform: 'scale(1)' },
+                '50%':      { opacity: '0.5', transform: 'scale(1.08)' },
+              },
+            },
+            animation: {
+              'fade-up':    'fade-up 0.2s ease-out',
+              'pulse-ring': 'pulse-ring 2s ease-in-out infinite',
+            },
+          }
+        }
+      }
+    </script>
+
+    <style>
+      ::-webkit-scrollbar       { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; opacity: 0.5; }
+
+      body {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+        font-family: 'DM Sans', system-ui, sans-serif;
+      }
+
+      :root {
+        --color-bg:          #f8f9ff;
+        --color-surface:     #ffffff;
+        --color-border:      #e5e7f0;
+        --color-primary:     #4f46e5;
+        --color-primary-light: #eef2ff;
+        --color-text:        #111827;
+        --color-text-muted:  #6b7280;
+        --color-online:      #22c55e;
+      }
+
+      /* Better focus visibility for accessibility */
+      :focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+
+      input, textarea {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Loading Screen */
+      #app-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+        background: var(--color-bg);
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      #app-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .loader-logo {
+        width: 56px;
+        height: 56px;
+        background: var(--color-primary);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+      }
+      .loader-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid #e0e7ff;
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .loader-text {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 13px;
+        color: var(--color-text-muted);
+        font-weight: 500;
+      }
+    </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@^19.2.4",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+        "react/": "https://esm.sh/react@^19.2.4/",
+        "lucide-react": "https://esm.sh/lucide-react@^0.564.0"
+      }
+    }
+    </script>
+    <script type="module" src="/index.js"></script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+  <body class="bg-[var(--color-bg)] text-[var(--color-text)] antialiased overflow-hidden">
+    <div id="app-loader" aria-label="Loading Mr.V" role="status">
+      <div class="loader-logo" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="loader-spinner"></div>
+      <p class="loader-text">Loading Mr.V...</p>
+    </div>
+
+    <div id="root"></div>
+
+    <script>
+      (function () {
+        var loader = document.getElementById('app-loader');
+        var root   = document.getElementById('root');
+        
+        // Hide loader when React mounts
+        var observer = new MutationObserver(function (mutations) {
+          for (var m of mutations) {
+            if (m.addedNodes.length > 0) {
+              loader.classList.add('hidden');
+              setTimeout(function () { loader.remove(); }, 400);
+              observer.disconnect();
+              break;
+            }
+          }
+        });
+
+        observer.observe(root, { childList: true, subtree: true });
+
+        // Fallback safety timeout
+        setTimeout(function () {
+          if (loader && loader.parentNode) {
+            loader.classList.add('hidden');
+            setTimeout(function () { if (loader.parentNode) loader.remove(); }, 400);
+          }
+        }, 5000);
+      })();
+    </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
