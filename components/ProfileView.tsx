@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { User } from '../types';
-import { QrCode, MoreVertical, Camera, Edit3, Settings, MessageCircle, Users, User as UserIcon, PlusCamera, ArrowLeft, Phone, AtSign, Cake, Megaphone, UserPlus, LogOut, Check, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Post } from '../types';
+import { QrCode, MoreVertical, Camera, Edit3, Settings, MessageCircle, Users, User as UserIcon, PlusCamera, ArrowLeft, Phone, AtSign, Cake, Megaphone, UserPlus, LogOut, Check, ChevronRight, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
+import { QRCodeSVG } from 'qrcode.react';
 
 const COUNTRIES = [
   { code: 'IR', name: 'Iran', dialCode: '+98', flag: '🇮🇷', format: '### ### ####' },
@@ -13,6 +15,7 @@ const COUNTRIES = [
   { code: 'RU', name: 'Russia', dialCode: '+7', flag: '🇷🇺', format: '### ###-##-##' },
   { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳', format: '##### #####' },
   { code: 'CN', name: 'China', dialCode: '+86', flag: '🇨🇳', format: '### #### ####' },
+  { code: 'AU', name: 'Australia', dialCode: '+61', flag: '🇦🇺', format: '# #### ####' },
 ];
 
 const PersianLion = () => (
@@ -88,6 +91,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
   const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [showCountrySelect, setShowCountrySelect] = useState(false);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState(currentUser.username);
+  const [showBirthdayPicker, setShowBirthdayPicker] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
+  const [qrTheme, setQrTheme] = useState('bg-gradient-to-br from-green-400 to-green-600');
+  
+  const [firstName, setFirstName] = useState(() => {
+    const parts = (currentUser.name || '').split(' ');
+    return parts[0] || '';
+  });
+  const [lastName, setLastName] = useState(() => {
+    const parts = (currentUser.name || '').split(' ');
+    return parts.slice(1).join(' ') || '';
+  });
+
   const [editData, setEditData] = useState({
     name: currentUser.name || '',
     phone_number: currentUser.phone_number || '',
@@ -95,10 +113,87 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
     birthday: currentUser.birthday || ''
   });
 
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const postInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingPost, setIsUploadingPost] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const res = await api.getPosts(currentUser.id);
+        if (Array.isArray(res)) {
+          setPosts(res);
+        }
+      } catch (e) {
+        console.error("Failed to fetch posts", e);
+      }
+    };
+    fetchPosts();
+  }, [currentUser.id]);
+
+  const handleSetPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingPhoto(true);
+    try {
+      const res = await api.uploadFile(file);
+      if (res.success && res.url) {
+        await onUpdateProfile({ avatar: res.url });
+      } else {
+        alert('Failed to upload photo');
+      }
+    } catch (err) {
+      alert('Error uploading photo');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleAddPost = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingPost(true);
+    try {
+      const res = await api.uploadFile(file);
+      if (res.success && res.url) {
+        const mediaType = file.type.startsWith('video') ? 'video' : 'image';
+        const postRes = await api.addPost(currentUser.id, res.url, mediaType);
+        if (postRes.success && postRes.post) {
+          setPosts(prev => [postRes.post, ...prev]);
+        } else {
+          alert('Failed to save post to database');
+        }
+      } else {
+        alert('Failed to upload post file');
+      }
+    } catch (err) {
+      alert('Error uploading post');
+    } finally {
+      setIsUploadingPost(false);
+    }
+  };
+
   const handleSave = async () => {
-    await onUpdateProfile(editData);
+    const fullName = `${firstName} ${lastName}`.trim();
+    await onUpdateProfile({ ...editData, name: fullName });
     setIsEditing(false);
   };
+
+  const handleSaveUsername = async () => {
+    await onUpdateProfile({ ...editData, username: newUsername });
+    setIsEditingUsername(false);
+  };
+
+  const QR_THEMES = [
+    { id: 'green', class: 'bg-gradient-to-br from-green-400 to-green-600', icon: '🌲' },
+    { id: 'yellow', class: 'bg-gradient-to-br from-yellow-300 to-yellow-500', icon: '🐥' },
+    { id: 'blue', class: 'bg-gradient-to-br from-blue-400 to-blue-600', icon: '❄️' },
+    { id: 'purple', class: 'bg-gradient-to-br from-purple-400 to-purple-600', icon: '🔮' },
+  ];
 
   const handleChangeNumber = async () => {
     const rawNumber = newPhoneNumber.replace(/\D/g, '');
@@ -135,6 +230,109 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
     setNewPhoneNumber(formattedValue);
   };
 
+  if (showQrCode) {
+    return (
+      <div className={`flex flex-col h-full ${qrTheme} text-white font-sans overflow-hidden transition-colors duration-500`}>
+        {/* Header */}
+        <div className="flex items-center p-4 shrink-0">
+          <button onClick={() => setShowQrCode(false)} className="text-white hover:bg-white/10 rounded-full p-2 transition">
+            <ArrowLeft size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center">
+            <div className="absolute -top-10 w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg">
+              <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name || currentUser.username}&background=random`} alt="Profile" className="w-full h-full object-cover" />
+            </div>
+            
+            <div className="mt-8 mb-6 w-48 h-48 bg-white rounded-xl flex items-center justify-center p-2">
+              <QRCodeSVG 
+                value={`https://mr-v.ir/${currentUser.username}`} 
+                size={180} 
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            
+            <h2 className={`text-2xl font-bold bg-clip-text text-transparent ${qrTheme}`}>@{currentUser.username}</h2>
+            <p className="text-sm text-gray-500 font-medium mt-1">mr-v.ir/{currentUser.username}</p>
+          </div>
+        </div>
+
+        {/* Bottom Sheet for Themes */}
+        <div className="bg-white rounded-t-3xl p-6 shrink-0 text-gray-900">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold">QR Code</h3>
+            <button className="text-gray-400 hover:text-gray-600">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+          </div>
+          
+          <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+            {QR_THEMES.map(theme => (
+              <button 
+                key={theme.id}
+                onClick={() => setQrTheme(theme.class)}
+                className={`w-20 h-24 shrink-0 rounded-2xl ${theme.class} flex items-center justify-center text-3xl border-4 transition-all ${qrTheme === theme.class ? 'border-primary-500 scale-105' : 'border-transparent opacity-70 hover:opacity-100'}`}
+              >
+                {theme.icon}
+              </button>
+            ))}
+          </div>
+
+          <button className="w-full bg-primary-500 text-white py-3.5 rounded-2xl font-medium hover:bg-primary-600 transition shadow-lg shadow-primary-500/30 mb-4">
+            Share QR Code
+          </button>
+          
+          <button className="w-full flex items-center justify-center gap-2 text-primary-600 font-medium py-2">
+            <QrCode size={20} />
+            Scan QR Code
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditingUsername) {
+    return (
+      <div className="flex flex-col h-full bg-gray-50 text-gray-900 font-sans overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 shrink-0">
+          <div className="flex items-center gap-6">
+            <button onClick={() => setIsEditingUsername(false)} className="text-gray-600 hover:text-gray-900 transition">
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl font-semibold">Username</h1>
+          </div>
+          <button onClick={handleSaveUsername} className="text-primary-600 hover:text-primary-700 transition p-1">
+            <Check size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 p-4">
+          <h2 className="text-sm font-semibold text-primary-600 mb-2 px-2">Set username</h2>
+          <div className="bg-white rounded-3xl overflow-hidden border border-gray-200 p-4 flex items-center">
+            <span className="text-gray-500 text-base mr-1">mr-v.ir/</span>
+            <input 
+              type="text" 
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              className="flex-1 bg-transparent text-base text-gray-900 focus:outline-none"
+              autoFocus
+            />
+          </div>
+          <p className="text-sm text-gray-500 mt-4 px-2 leading-relaxed">
+            You can choose a username on <strong>Mr.V</strong>. If you do, people will be able to find you by this username and contact you without needing your phone number.
+          </p>
+          <p className="text-sm text-gray-500 mt-4 px-2 leading-relaxed">
+            You can use <strong>a-z</strong>, <strong>0-9</strong> and underscores. Minimum length is <strong>5</strong> characters.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (changeNumberStep === 1 || changeNumberStep === 2) {
     return (
       <>
@@ -148,8 +346,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
 
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="w-32 h-32 mb-6 relative">
-            {/* Duck illustration placeholder */}
-            <div className="absolute inset-0 bg-yellow-400 rounded-full flex items-center justify-center text-5xl">🦆</div>
+            <PersianLion />
             <div className="absolute -bottom-2 -right-2 bg-primary-500 rounded-xl p-2 shadow-lg text-white">
               <Phone size={24} />
             </div>
@@ -226,28 +423,62 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
           </p>
 
           <div className="w-full max-w-sm space-y-4 text-left">
-            <div className="bg-white rounded-2xl border border-gray-200 p-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition">
+            <div 
+              onClick={() => setShowCountrySelect(true)}
+              className="bg-white rounded-2xl border border-gray-200 p-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition"
+            >
               <div className="flex items-center gap-3">
-                <span className="text-xl">🇮🇷</span>
-                <span className="text-base font-medium">Iran</span>
+                <span className="text-xl">{selectedCountry.flag}</span>
+                <span className="text-base font-medium">{selectedCountry.name}</span>
               </div>
               <ChevronRight size={20} className="text-gray-400" />
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-200 p-3 flex items-center">
-              <span className="text-base font-medium mr-3">+98</span>
+              <span className="text-base font-medium mr-3">{selectedCountry.dialCode}</span>
               <div className="w-px h-6 bg-gray-200 mr-3"></div>
               <input 
                 type="tel" 
                 value={newPhoneNumber}
-                onChange={(e) => setNewPhoneNumber(e.target.value)}
-                placeholder="000 000 0000"
+                onChange={handlePhoneChange}
+                placeholder={selectedCountry.format.replace(/#/g, '0')}
                 className="flex-1 bg-transparent text-base font-medium focus:outline-none placeholder-gray-400"
                 autoFocus
               />
             </div>
           </div>
         </div>
+
+        {/* Country Selection Modal */}
+        {showCountrySelect && (
+          <div className="fixed inset-0 z-50 flex flex-col bg-white animate-in slide-in-from-bottom-full duration-300">
+            <div className="flex items-center p-4 border-b border-gray-100">
+              <button onClick={() => setShowCountrySelect(false)} className="text-gray-600 hover:text-gray-900 transition mr-4">
+                <ArrowLeft size={24} />
+              </button>
+              <h2 className="text-xl font-semibold">Choose Country</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {COUNTRIES.map((country) => (
+                <div 
+                  key={country.code}
+                  onClick={() => {
+                    setSelectedCountry(country);
+                    setShowCountrySelect(false);
+                    setNewPhoneNumber('');
+                  }}
+                  className="flex items-center justify-between p-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-2xl">{country.flag}</span>
+                    <span className="text-base font-medium text-gray-900">{country.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-500 font-medium">{country.dialCode}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -284,23 +515,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
                   <p className="text-sm text-gray-500">Tap to change phone number</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition">
+              <div 
+                onClick={() => setIsEditingUsername(true)}
+                className="flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition"
+              >
                 <AtSign size={24} className="text-gray-400 shrink-0" />
                 <div>
                   <p className="text-base font-medium text-gray-900">@{currentUser.username}</p>
                   <p className="text-sm text-gray-500">Username</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-50 transition">
+              <div 
+                onClick={() => setShowBirthdayPicker(true)}
+                className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-50 transition"
+              >
                 <Cake size={24} className="text-gray-400 shrink-0" />
                 <div className="flex-1">
-                  <input 
-                    type="text" 
-                    value={editData.birthday} 
-                    onChange={e => setEditData({...editData, birthday: e.target.value})}
-                    placeholder="Dec 24, 2005"
-                    className="w-full bg-transparent text-base font-medium text-gray-900 focus:outline-none placeholder-gray-400"
-                  />
+                  <p className="text-base font-medium text-gray-900">{editData.birthday || 'Not set'}</p>
                   <p className="text-sm text-gray-500">Birthday</p>
                 </div>
               </div>
@@ -315,8 +546,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
               <div>
                 <input 
                   type="text" 
-                  value={editData.name} 
-                  onChange={e => setEditData({...editData, name: e.target.value})}
+                  value={firstName} 
+                  onChange={e => setFirstName(e.target.value)}
                   placeholder="First name (required)"
                   className="w-full bg-transparent text-base text-gray-900 focus:outline-none placeholder-gray-400 border-b border-gray-200 pb-2 focus:border-primary-500 transition-colors"
                 />
@@ -324,6 +555,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
               <div>
                 <input 
                   type="text" 
+                  value={lastName}
+                  onChange={e => setLastName(e.target.value)}
                   placeholder="Last name (optional)"
                   className="w-full bg-transparent text-base text-gray-900 focus:outline-none placeholder-gray-400 border-b border-gray-200 pb-2 focus:border-primary-500 transition-colors"
                 />
@@ -383,6 +616,42 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
           </div>
 
         </div>
+
+        {/* Birthday Picker Modal */}
+        {showBirthdayPicker && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end bg-gray-900/40 backdrop-blur-sm">
+            <div className="bg-white rounded-t-3xl p-6 animate-in slide-in-from-bottom-full duration-200">
+              <h2 className="text-xl font-semibold mb-6 text-gray-900">Birthday</h2>
+              
+              <div className="flex justify-center mb-8">
+                <input 
+                  type="date" 
+                  value={editData.birthday}
+                  onChange={(e) => setEditData({...editData, birthday: e.target.value})}
+                  className="text-lg p-2 border-b-2 border-primary-500 focus:outline-none bg-transparent"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setShowBirthdayPicker(false)}
+                  className="w-full bg-primary-500 text-white py-3.5 rounded-2xl font-medium hover:bg-primary-600 transition shadow-lg shadow-primary-500/30"
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={() => {
+                    setEditData({...editData, birthday: ''});
+                    setShowBirthdayPicker(false);
+                  }}
+                  className="w-full text-primary-600 py-3.5 rounded-2xl font-medium hover:bg-primary-50 transition"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -391,7 +660,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
     <div className="flex flex-col h-full bg-white text-gray-900 font-sans overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4 shrink-0">
-        <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition">
+        <button 
+          onClick={() => setShowQrCode(true)}
+          className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
+        >
           <QrCode size={24} />
         </button>
         <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition">
@@ -414,8 +686,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
 
           {/* Action Buttons */}
           <div className="flex gap-3 w-full max-w-md mb-6">
-            <button className="flex-1 flex flex-col items-center justify-center py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-2xl transition border border-gray-100">
-              <Camera size={24} className="mb-1" />
+            <input 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              ref={photoInputRef} 
+              onChange={handleSetPhoto} 
+            />
+            <button 
+              onClick={() => photoInputRef.current?.click()}
+              disabled={isUploadingPhoto}
+              className="flex-1 flex flex-col items-center justify-center py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-2xl transition border border-gray-100 disabled:opacity-50"
+            >
+              {isUploadingPhoto ? <Loader2 size={24} className="mb-1 animate-spin" /> : <Camera size={24} className="mb-1" />}
               <span className="text-xs font-medium">Set Photo</span>
             </button>
             <button 
@@ -450,8 +733,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
                 <p className="text-sm text-gray-500">Username</p>
               </div>
               <div>
-                <p className="text-lg text-gray-900">{currentUser.birthday || 'Not set'}</p>
+                <p className="text-lg text-gray-900">{editData.birthday || 'Not set'}</p>
                 <p className="text-sm text-gray-500">Birthday</p>
+              </div>
+              <div>
+                <p className="text-lg text-gray-900">{String(currentUser.id).padStart(9, '0')}</p>
+                <p className="text-sm text-gray-500">User ID</p>
               </div>
             </div>
           </div>
@@ -475,16 +762,49 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateP
           </div>
 
           {/* Content Area */}
-          <div className="w-full max-w-md text-center py-10">
-            <p className="text-gray-500 text-sm">Publish photos and videos to display on your profile.</p>
+          <div className="w-full max-w-md py-4">
+            {activeTab === 'posts' ? (
+              posts.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1">
+                  {posts.map(post => (
+                    <div key={post.id} className="aspect-square bg-gray-100 relative overflow-hidden">
+                      {post.media_type === 'video' ? (
+                        <video src={post.media_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={post.media_url} alt="Post" className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <p className="text-gray-500 text-sm">Publish photos and videos to display on your profile.</p>
+                </div>
+              )
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-gray-500 text-sm">No archived posts.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Floating Action Button */}
       <div className="absolute bottom-20 right-4 md:right-auto md:left-1/2 md:-translate-x-1/2 md:ml-[150px]">
-        <button className="flex items-center gap-2 bg-primary-500 text-white px-4 py-3 rounded-2xl font-medium shadow-lg shadow-primary-500/30 hover:bg-primary-600 transition active:scale-95">
-          <Camera size={20} />
+        <input 
+          type="file" 
+          accept="image/*,video/*" 
+          className="hidden" 
+          ref={postInputRef} 
+          onChange={handleAddPost} 
+        />
+        <button 
+          onClick={() => postInputRef.current?.click()}
+          disabled={isUploadingPost}
+          className="flex items-center gap-2 bg-primary-500 text-white px-4 py-3 rounded-2xl font-medium shadow-lg shadow-primary-500/30 hover:bg-primary-600 transition active:scale-95 disabled:opacity-50"
+        >
+          {isUploadingPost ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
           Add a post
         </button>
       </div>

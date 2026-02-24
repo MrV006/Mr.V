@@ -74,6 +74,14 @@ export const api = {
     return phpFetch('get_messages', { user_id: userId, contact_id: contactId });
   },
 
+  addPost: async (userId: number, mediaUrl: string, mediaType: string) => {
+    return phpFetch('add_post', { user_id: userId, media_url: mediaUrl, media_type: mediaType });
+  },
+
+  getPosts: async (userId: number) => {
+    return phpFetch('get_posts', { user_id: userId });
+  },
+
   sendMessage: async (senderId: number, receiverId: number, message: string, type: string = 'text', attachmentUrl: string = '') => {
     return phpFetch('send_message', { 
         sender_id: senderId, 

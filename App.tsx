@@ -13,7 +13,7 @@ import {
   Phone, Video, Trash2, X, Paperclip, Users, Loader2, Play, Pause,
   Download, Maximize2, FileDown,
   ArrowDown, Copy, CornerUpLeft, ArrowRight,
-  CheckSquare, Square, Mic, UserPlus, MessageCircle
+  CheckSquare, Square, Mic, UserPlus, MessageCircle, ChevronDown, User as UserIcon
 } from 'lucide-react';
 
 // --- Voice Recording Component ---
@@ -539,7 +539,18 @@ const App = () => {
   const [replyingTo, setReplyingTo] = useState<{msg: Message, content: string} | null>(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [forwardContent, setForwardContent] = useState<string | null>(null);
-  
+  const [showMainMenu, setShowMainMenu] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Close main menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showMainMenu) setShowMainMenu(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showMainMenu]);
+
   // Refs
   const activeContactIdRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -975,12 +986,72 @@ const App = () => {
                 />
             ) : (
                 <>
-                    <div className="h-16 px-4 bg-slate-50 border-b flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-3">
-                            <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name || currentUser.username}`} className="w-10 h-10 rounded-full" />
-                            <div><h2 className="font-bold text-sm">{currentUser.name || currentUser.username}</h2><span className="text-[10px] text-green-600 font-bold">ONLINE</span></div>
+                    <div className="h-16 px-4 bg-white border-b flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setShowMainMenu(!showMainMenu)}
+                                    className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition"
+                                >
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                                </button>
+                                
+                                {/* Main Menu Dropdown */}
+                                {showMainMenu && (
+                                    <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50 animate-in slide-in-from-top-2">
+                                        <div className="px-4 py-3 border-b border-gray-100 mb-2 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name || currentUser.username}`} className="w-10 h-10 rounded-full" />
+                                                <div>
+                                                    <h3 className="font-bold text-sm text-gray-900">{currentUser.name || currentUser.username}</h3>
+                                                    <p className="text-xs text-gray-500">+{currentUser.phone_number}</p>
+                                                </div>
+                                            </div>
+                                            <button className="p-1 text-gray-400 hover:text-gray-600"><ChevronDown size={20} /></button>
+                                        </div>
+                                        
+                                        <button onClick={() => { setMainView('profile'); setShowMainMenu(false); }} className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition text-left">
+                                            <UserIcon size={20} className="text-gray-500" />
+                                            <span className="text-sm font-medium text-gray-700">My Profile</span>
+                                        </button>
+                                        <button className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition text-left">
+                                            <Users size={20} className="text-gray-500" />
+                                            <span className="text-sm font-medium text-gray-700">New Group</span>
+                                        </button>
+                                        <button onClick={() => { setMainView('contacts'); setShowMainMenu(false); }} className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition text-left">
+                                            <UserIcon size={20} className="text-gray-500" />
+                                            <span className="text-sm font-medium text-gray-700">Contacts</span>
+                                        </button>
+                                        <button className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition text-left">
+                                            <Phone size={20} className="text-gray-500" />
+                                            <span className="text-sm font-medium text-gray-700">Calls</span>
+                                        </button>
+                                        <button className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition text-left">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                            <span className="text-sm font-medium text-gray-700">Saved Messages</span>
+                                        </button>
+                                        <button onClick={() => { setShowSettings(true); setShowMainMenu(false); }} className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition text-left">
+                                            <Settings size={20} className="text-gray-500" />
+                                            <span className="text-sm font-medium text-gray-700">Settings</span>
+                                        </button>
+                                        
+                                        <div className="border-t border-gray-100 my-2"></div>
+                                        
+                                        <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition cursor-pointer" onClick={() => setIsDarkMode(!isDarkMode)}>
+                                            <div className="flex items-center gap-4">
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                                                <span className="text-sm font-medium text-gray-700">Night Mode</span>
+                                            </div>
+                                            <div className={`w-10 h-6 rounded-full p-1 transition-colors ${isDarkMode ? 'bg-primary-500' : 'bg-gray-300'}`}>
+                                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isDarkMode ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <h1 className="text-xl font-semibold text-gray-900">Mr.V</h1>
                         </div>
-                        <button onClick={() => setShowSettings(true)} className="p-2 text-gray-400 hover:bg-gray-200 rounded-full"><Settings size={20} /></button>
+                        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><Search size={20} /></button>
                     </div>
                     <div className="p-3 bg-[var(--color-surface)] border-b sticky top-0 z-10">
                         <form onSubmit={handleSearchUser} className="relative flex items-center gap-2">

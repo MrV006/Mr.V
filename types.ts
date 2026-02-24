@@ -41,6 +41,14 @@ export interface CallSignal {
   created_at: string;
 }
 
+export interface Post {
+  id: number;
+  user_id: number;
+  media_url: string;
+  media_type: 'image' | 'video';
+  created_at: string;
+}
+
 export interface AuthResponse {
   success: boolean;
   user?: User;
